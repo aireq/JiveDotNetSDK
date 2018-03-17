@@ -6,6 +6,8 @@ using System.Threading.Tasks;
 using System.Net;
 using System.IO;
 using Net.Pokeshot.JiveSdk.Models;
+using System.Web;
+using Newtonsoft.Json.Linq;
 
 namespace Net.Pokeshot.JiveSdk.Clients
 {
@@ -18,9 +20,31 @@ namespace Net.Pokeshot.JiveSdk.Clients
         private string imagesUrl
         { get { return JiveCommunityUrl + "/api/core/v3/images"; } }
 
-        public Net.Pokeshot.JiveSdk.Models.Image CreateImage(System.IO.Stream imageData)
+        public Net.Pokeshot.JiveSdk.Models.Image CreateImage(byte[] imageData)
         {
-            throw new NotImplementedException();
+            string result;
+
+            try
+            {
+                result = this.PostBinary(imagesUrl, imageData, "imagefile.jpg");
+            }
+            catch (HttpException e)
+            {
+                switch (e.GetHttpCode())
+                {
+                    case 400:
+                        throw new HttpException(e.WebEventCode, "Any of the input fields are malformed", e);
+                    case 403:
+                        throw new HttpException(e.WebEventCode, "You are not allowed to access the specified content", e);
+                    case 409:
+                        throw new HttpException(e.WebEventCode, "New entity would conflict with system restrictions (such as two contents of the same type with the same name", e);
+                    default:
+                        throw;
+                }
+            }
+
+            JObject Json = JObject.Parse(result);
+            return Json.ToObject<Models.Image>();
         }
 
         public IList<Image> GetContentImages(int contentId)
